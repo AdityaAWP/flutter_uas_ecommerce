@@ -1,0 +1,47 @@
+name: uts
+description: "A new Flutter project."
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  lottie: ^2.2.0
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.3.2
+  url_launcher: ^6.3.1
+  http: ^0.13.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: "^0.14.1"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/splash_screen.json
+    - assets/login.png
+    - assets/pink_floyd.png
+    - assets/denzel_curry.png
+    - assets/logos.jpg
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logos.jpg"
+  adaptive_icon_background: "#ffffff" # Optional: for Android adaptive icons
+  adaptive_icon_foreground: "assets/logos.jpg" # Optional: for Android adaptive icons
+  android_gravity: center # Optional: position of the image within adaptive icon
+  ios_remove_alpha_ios: true # Optional: recommended for iOS icons
+  web:
+    generate: true # Optional: if you want to generate web icons
+    image_path: "assets/logos.jpg"
+    background_color: "#ffffff"
+    theme_color: "#ffffff"
