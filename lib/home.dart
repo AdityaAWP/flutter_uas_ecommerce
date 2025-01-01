@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'product_model.dart';
 import 'detailpage.dart';
+import 'payementpage.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -20,6 +21,8 @@ class _HomeState extends State<Home> {
   bool isLoading = true;
   static const String baseUrl =
       'http://127.0.0.1:8000'; // Update with your API URL
+  double totalSelectedPrice = 0.0;
+  Map<Product, int> selectedProducts = {};
 
   @override
   void initState() {
@@ -107,6 +110,48 @@ class _HomeState extends State<Home> {
     }
   }
 
+  void _addProductToSelection(Product product) {
+    setState(() {
+      if (selectedProducts.containsKey(product)) {
+        selectedProducts[product] = selectedProducts[product]! + 1;
+      } else {
+        selectedProducts[product] = 1;
+      }
+      totalSelectedPrice += product.price;
+    });
+  }
+
+  void _navigateToPaymentPage() {
+    setState(() {
+      // Save selected products and quantities to state
+      selectedProducts = Map.from(selectedProducts);
+    });
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentPage(
+          totalPrice: totalSelectedPrice,
+          purchasedItems: selectedProducts.entries.map((entry) {
+            return {
+              'id': entry.key.id, // Include product ID
+              'name': entry.key.title,
+              'price': entry.key.price,
+              'quantity': entry.value,
+            };
+          }).toList(),
+        ),
+      ),
+    ).then((result) {
+      if (result == true) {
+        setState(() {
+          totalSelectedPrice = 0.0;
+          selectedProducts.clear();
+        });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,6 +198,7 @@ class _HomeState extends State<Home> {
                       itemCount: products.length,
                       itemBuilder: (context, index) {
                         final product = products[index];
+                        final quantity = selectedProducts[product] ?? 0;
                         return Card(
                           elevation: 4,
                           child: InkWell(
@@ -218,12 +264,40 @@ class _HomeState extends State<Home> {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 4),
-                                      Text(
-                                        'Rp${product.price.toStringAsFixed(2)}',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blue,
+                                      GestureDetector(
+                                        onTap: () =>
+                                            _addProductToSelection(product),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8.0),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(4.0),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Rp${product.price.toStringAsFixed(2)}',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: quantity > 0
+                                                      ? Colors.green
+                                                      : Colors.blue,
+                                                ),
+                                              ),
+                                              if (quantity > 0)
+                                                Text(
+                                                  'Quantity: $quantity',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.green,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -236,50 +310,66 @@ class _HomeState extends State<Home> {
                       },
                     ),
             ),
-      bottomNavigationBar: BottomAppBar(
-        color: const Color(0xFF003161),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.call, color: Colors.white),
-                onPressed: _launchCallCenter,
-                tooltip: 'Call Center',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: ElevatedButton(
+              onPressed: _navigateToPaymentPage,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                    vertical: 16.0, horizontal: 20.0),
+                textStyle:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                backgroundColor: const Color(0xFF003161), // Button color
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.sms, color: Colors.white),
-                onPressed: _launchSmsCenter,
-                tooltip: 'SMS Center',
+              child: Text(
+                'Total Harga: Rp${totalSelectedPrice.toStringAsFixed(2)}',
+                style: TextStyle(color: Colors.white),
               ),
-              IconButton(
-                icon: const Icon(Icons.map, color: Colors.white),
-                onPressed: _launchMap,
-                tooltip: 'Location/Maps',
-              ),
-              IconButton(
-                icon: const Icon(Icons.person, color: Colors.white),
-                onPressed: () async {
-                  await Navigator.pushNamed(context, '/updateUser');
-                  _loadUsername();
-                },
-                tooltip: 'Update User',
-              ),
-            ],
+            ),
           ),
-        ),
+          BottomAppBar(
+            color: const Color(0xFF003161),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.call, color: Colors.white),
+                    onPressed: _launchCallCenter,
+                    tooltip: 'Call Center',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.sms, color: Colors.white),
+                    onPressed: _launchSmsCenter,
+                    tooltip: 'SMS Center',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.map, color: Colors.white),
+                    onPressed: _launchMap,
+                    tooltip: 'Location/Maps',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.person, color: Colors.white),
+                    onPressed: () async {
+                      await Navigator.pushNamed(context, '/updateUser');
+                      _loadUsername();
+                    },
+                    tooltip: 'Update User',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
-
-// pubspec.yaml dependencies to add:
-/*
-dependencies:
-  flutter:
-    sdk: flutter
-  http: ^1.1.0
-  shared_preferences: ^2.2.0
-  url_launcher: ^6.1.12
-*/

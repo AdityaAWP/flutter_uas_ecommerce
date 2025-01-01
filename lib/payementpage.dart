@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PaymentPage extends StatefulWidget {
   final double totalPrice;
@@ -30,8 +33,9 @@ class _PaymentPageState extends State<PaymentPage> {
 
   void _deleteItem(int index) {
     setState(() {
-      // Subtract the item's price from total
-      _currentTotalPrice -= _currentItems[index]['price'];
+      // Subtract the item's total price (price * quantity) from total
+      _currentTotalPrice -=
+          _currentItems[index]['price'] * _currentItems[index]['quantity'];
       // Remove the item from the list
       _currentItems.removeAt(index);
       // Recalculate change if payment amount exists
@@ -103,6 +107,83 @@ class _PaymentPageState extends State<PaymentPage> {
         );
       },
     );
+  }
+
+  void _purchaseItems() async {
+    if (_errorMessage.isNotEmpty) {
+      return;
+    }
+
+    // Retrieve token from shared preferences
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('access_token');
+
+    // Prepare data for the order
+    final orderData = {
+      'total_price': _currentTotalPrice,
+      'products': _currentItems.map((item) {
+        return {
+          'id': item['id'],
+          'quantity': item['quantity'],
+          'price': item['price'],
+        };
+      }).toList(),
+    };
+
+    // Send data to the server
+    final response = await http.post(
+      Uri.parse('http://127.0.0.1:8000/api/orders'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(orderData),
+    );
+
+    if (response.statusCode == 201) {
+      // Order successful
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Success'),
+            content: const Text('Order placed successfully.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context)
+                      .pop(true); // Return to home with true result
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      // Log the response body for debugging
+      print('Failed to place order: ${response.body}');
+
+      // Order failed
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Error'),
+            content: const Text('Failed to place order.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   @override
@@ -255,7 +336,7 @@ class _PaymentPageState extends State<PaymentPage> {
                           children: [
                             Expanded(
                               child: Text(
-                                item['name'],
+                                '${item['name']} (x${item['quantity']})',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   color: Color(0xFF243642),
@@ -263,7 +344,7 @@ class _PaymentPageState extends State<PaymentPage> {
                               ),
                             ),
                             Text(
-                              'Rp. ${item['price'].toString()}',
+                              'Rp. ${(item['price'] * item['quantity']).toString()}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 color: Color(0xFF243642),
@@ -296,6 +377,27 @@ class _PaymentPageState extends State<PaymentPage> {
                 child: const Center(
                   child: Text(
                     'Print Nota',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFE2F1E7),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16.0),
+              ElevatedButton(
+                onPressed: _purchaseItems,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF243642),
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                ),
+                child: const Center(
+                  child: Text(
+                    'Beli',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
