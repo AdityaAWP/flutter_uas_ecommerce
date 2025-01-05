@@ -46,6 +46,27 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
+  void _increaseQuantity(int index) {
+    setState(() {
+      _currentItems[index]['quantity']++;
+      _recalculateTotalPrice();
+    });
+  }
+
+  void _decreaseQuantity(int index) {
+    setState(() {
+      if (_currentItems[index]['quantity'] > 1) {
+        _currentItems[index]['quantity']--;
+        _recalculateTotalPrice();
+      }
+    });
+  }
+
+  void _recalculateTotalPrice() {
+    _currentTotalPrice = _currentItems.fold(
+        0.0, (sum, item) => sum + (item['price'] * item['quantity']));
+  }
+
   void _calculateChange() {
     setState(() {
       _paymentAmount = double.tryParse(_paymentController.text) ?? 0.0;
@@ -300,12 +321,24 @@ class _PaymentPageState extends State<PaymentPage> {
                                 color: Color(0xFF243642),
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete,
-                                color: Colors.red,
-                              ),
-                              onPressed: () => _deleteItem(index),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle_outline),
+                                  onPressed: () => _decreaseQuantity(index),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.add_circle_outline),
+                                  onPressed: () => _increaseQuantity(index),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () => _deleteItem(index),
+                                ),
+                              ],
                             ),
                           ],
                         ),
