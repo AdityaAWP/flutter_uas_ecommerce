@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uts/shipping_page.dart';
 
 class PaymentPage extends StatefulWidget {
   final double totalPrice;
@@ -33,22 +34,16 @@ class _PaymentPageState extends State<PaymentPage> {
 
   void _deleteItem(int index) {
     setState(() {
-      // Subtract the item's total price (price * quantity) from total
-      _currentTotalPrice -=
-          _currentItems[index]['price'] * _currentItems[index]['quantity'];
-      // Remove the item from the list
       _currentItems.removeAt(index);
-      // Recalculate change if payment amount exists
-      if (_paymentAmount != null) {
-        if (_paymentAmount! < _currentTotalPrice) {
-          _errorMessage = 'Jumlah Uang Anda Kurang';
-          _change = 0.0;
-        } else {
-          _errorMessage = '';
-          _change = _paymentAmount! - _currentTotalPrice;
-        }
-      }
+      // Recalculate total price
+      _currentTotalPrice = _currentItems.fold(
+          0.0, (sum, item) => sum + (item['price'] * item['quantity']));
     });
+
+    // When navigating back, pass both the remaining items and whether all items were deleted
+    if (_currentItems.isEmpty) {
+      Navigator.pop(context, {'clear': true});
+    }
   }
 
   void _calculateChange() {
@@ -114,6 +109,33 @@ class _PaymentPageState extends State<PaymentPage> {
       return;
     }
 
+    // Navigate to shipping page
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ShippingPage(
+          totalPrice: _currentTotalPrice,
+          purchasedItems: _currentItems,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      // Handle the shipping selection
+      Map<String, dynamic> shippingData = result as Map<String, dynamic>;
+      double shippingCost = shippingData['shipping_cost'].toDouble();
+
+      // Update total price with shipping cost
+      setState(() {
+        _currentTotalPrice += shippingCost;
+      });
+
+      // Continue with purchase process...
+      _processPurchase(shippingData);
+    }
+  }
+
+  void _processPurchase(Map<String, dynamic> shippingData) async {
     // Retrieve token from shared preferences
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('access_token');
@@ -121,6 +143,9 @@ class _PaymentPageState extends State<PaymentPage> {
     // Prepare data for the order
     final orderData = {
       'total_price': _currentTotalPrice,
+      'shipping_cost': shippingData['shipping_cost'],
+      'shipping_service': shippingData['shipping_service'],
+      'estimated_days': shippingData['estimated_days'],
       'products': _currentItems.map((item) {
         return {
           'id': item['id'],
@@ -232,81 +257,6 @@ class _PaymentPageState extends State<PaymentPage> {
                   ],
                 ),
               ),
-              TextField(
-                controller: _paymentController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Masukkan jumlah uang anda',
-                  labelStyle: const TextStyle(color: Colors.white70),
-                  filled: true,
-                  fillColor: const Color(0xFF387478),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 16.0),
-              ElevatedButton(
-                onPressed: _calculateChange,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF629584),
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                ),
-                child: const Center(
-                  child: Text(
-                    'Hitung Kembalian',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24.0),
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2F1E7),
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total Harga: Rp. ${_paymentAmount?.toStringAsFixed(0) ?? '0'}',
-                      style: const TextStyle(
-                          fontSize: 18, color: Color(0xFF243642)),
-                    ),
-                    Text(
-                      'Kembalian: Rp. ${_change.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color:
-                            _change >= 0 ? const Color(0xFF243642) : Colors.red,
-                        fontWeight:
-                            _change >= 0 ? FontWeight.normal : FontWeight.bold,
-                      ),
-                    ),
-                    if (_errorMessage.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          _errorMessage,
-                          style:
-                              const TextStyle(fontSize: 16, color: Colors.red),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
               const SizedBox(height: 24.0),
               Container(
                 padding: const EdgeInsets.all(16.0),
@@ -365,27 +315,6 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
               ),
               const SizedBox(height: 32.0),
-              ElevatedButton(
-                onPressed: _printReceipt,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF243642),
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                ),
-                child: const Center(
-                  child: Text(
-                    'Print Nota',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFE2F1E7),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16.0),
               ElevatedButton(
                 onPressed: _purchaseItems,
                 style: ElevatedButton.styleFrom(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'user_model.dart'; // Import the user model
+// Import the user model
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({Key? key}) : super(key: key);
@@ -17,6 +17,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   String? usernameError;
   String? emailError;
   String? passwordError;
+  bool isLoading = false;
 
   void registerUser() async {
     String username = usernameController.text;
@@ -28,36 +29,58 @@ class _RegistrationPageState extends State<RegistrationPage> {
       emailError = email.isEmpty ? 'Email tidak boleh kosong' : null;
       passwordError =
           password.isNotEmpty ? null : 'Password tidak boleh kosong';
+      isLoading = true;
     });
 
     if (usernameError == null && emailError == null && passwordError == null) {
-      var response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/api/register'), // Update this line
-        body: jsonEncode({
-          'name': username,
-          'email': email,
-          'password': password,
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      );
+      try {
+        var response = await http.post(
+          Uri.parse(
+              'http://192.168.20.126:8000/api/register'), // Update this line
+          body: jsonEncode({
+            'name': username,
+            'email': email,
+            'password': password,
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        );
 
-      if (response.statusCode == 201) {
-        // Registration successful, navigate to login
-        Navigator.pushReplacementNamed(context, '/login');
-      } else {
-        // Handle registration error
-        var errorData = json.decode(response.body);
+        print('Response status: ${response.statusCode}');
+        print('Response body: ${response.body}');
+
         setState(() {
-          usernameError = errorData['name']?.first;
-          emailError = errorData['email']?.first;
-          passwordError = errorData['password']?.first;
+          isLoading = false;
         });
-        showAlertDialog(context, "Registration Failed",
-            "Please check your input and try again.");
+
+        if (response.statusCode == 201) {
+          // Registration successful, navigate to login
+          Navigator.pushReplacementNamed(context, '/login');
+        } else {
+          // Handle registration error
+          var errorData = json.decode(response.body);
+          setState(() {
+            usernameError = errorData['name']?.first;
+            emailError = errorData['email']?.first;
+            passwordError = errorData['password']?.first;
+          });
+          showAlertDialog(context, "Registration Failed",
+              "Please check your input and try again.");
+        }
+      } catch (e, stackTrace) {
+        print('Registration error: $e');
+        print('Stack trace: $stackTrace');
+
+        setState(() {
+          isLoading = false;
+        });
+        showAlertDialog(context, "Registration Error", "Error: $e");
       }
     } else {
+      setState(() {
+        isLoading = false;
+      });
       showAlertDialog(
           context, "Validation Error", "Please fill all fields correctly.");
     }
@@ -145,11 +168,13 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xFF006A67),
                   ),
-                  onPressed: registerUser,
-                  child: const Text(
-                    'Register',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  onPressed: isLoading ? null : registerUser,
+                  child: isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Register',
+                          style: TextStyle(color: Colors.white),
+                        ),
                 ),
               ),
               // Link to Login

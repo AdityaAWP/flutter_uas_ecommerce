@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class UpdateUserPage extends StatefulWidget {
   const UpdateUserPage({super.key});
@@ -22,12 +24,10 @@ class _UpdateUserPageState extends State<UpdateUserPage> {
 
   Future<void> _loadCurrentUserName() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? currentName = prefs.getString("username");
-    String? currentPass = prefs.getString("password");
-    if (currentName != null && currentPass != null) {
-      nameController.text = currentName;
-      passwordController.text = currentPass;
-    }
+    String? username = prefs.getString('username');
+    setState(() {
+      nameController.text = username ?? '';
+    });
   }
 
   Future<void> _updateUserDetails() async {
@@ -42,14 +42,47 @@ class _UpdateUserPageState extends State<UpdateUserPage> {
 
     if (newName.isNotEmpty && newPassword.isNotEmpty) {
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString("username", newName); // Update name
-      await prefs.setString("password", newPassword); // Save new password
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User updated successfully!')),
-      );
-
-      Navigator.pop(context); // Go back to the previous screen
+      String? token = prefs.getString('access_token');
+      String? userId = prefs.getString(
+          'user_id'); // Assuming user ID is stored in shared preferences
+      if (userId != null) {
+        try {
+          final response = await http.put(
+            Uri.parse('http://127.0.0.1:8000/api/update-profile/$userId'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: json.encode({
+              'name': newName,
+              'password': newPassword,
+            }),
+          );
+          if (response.statusCode == 200) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('User updated successfully!')),
+            );
+            Navigator.pop(context); // Go back to the previous screen
+          } else {
+            print('Failed to update user details: ${response.statusCode}');
+            print('Response body: ${response.body}');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(
+                      'Failed to update user details: ${response.statusCode}')),
+            );
+          }
+        } catch (e) {
+          print('Error: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error updating user details: $e')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No access token or user ID found')),
+        );
+      }
     }
   }
 

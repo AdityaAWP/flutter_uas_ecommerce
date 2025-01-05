@@ -18,11 +18,13 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   String username = 'Loading...';
   List<Product> products = [];
+  List<Product> filteredProducts = [];
   bool isLoading = true;
   static const String baseUrl =
       'http://127.0.0.1:8000'; // Update with your API URL
   double totalSelectedPrice = 0.0;
   Map<Product, int> selectedProducts = {};
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
@@ -69,8 +71,10 @@ class _HomeState extends State<Home> {
           final productList = responseData['data']['data'] as List;
           products = productList.map((data) {
             data['product_image'] = '$baseUrl/storage/${data['product_image']}';
+            print('Image URL: ${data['product_image']}');
             return Product.fromJson(data);
           }).toList();
+          filteredProducts = products;
           isLoading = false;
         });
       } else {
@@ -87,6 +91,16 @@ class _HomeState extends State<Home> {
         );
       }
     }
+  }
+
+  void _filterProducts(String query) {
+    setState(() {
+      filteredProducts = products.where((product) {
+        final titleLower = product.title.toLowerCase();
+        final searchLower = query.toLowerCase();
+        return titleLower.contains(searchLower);
+      }).toList();
+    });
   }
 
   Future<void> _launchCallCenter() async {
@@ -122,11 +136,6 @@ class _HomeState extends State<Home> {
   }
 
   void _navigateToPaymentPage() {
-    setState(() {
-      // Save selected products and quantities to state
-      selectedProducts = Map.from(selectedProducts);
-    });
-
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -134,7 +143,7 @@ class _HomeState extends State<Home> {
           totalPrice: totalSelectedPrice,
           purchasedItems: selectedProducts.entries.map((entry) {
             return {
-              'id': entry.key.id, // Include product ID
+              'id': entry.key.id,
               'name': entry.key.title,
               'price': entry.key.price,
               'quantity': entry.value,
@@ -143,11 +152,14 @@ class _HomeState extends State<Home> {
         ),
       ),
     ).then((result) {
-      if (result == true) {
-        setState(() {
-          totalSelectedPrice = 0.0;
-          selectedProducts.clear();
-        });
+      if (result != null) {
+        Map<String, dynamic> response = result as Map<String, dynamic>;
+        if (response['clear'] == true) {
+          setState(() {
+            totalSelectedPrice = 0.0;
+            selectedProducts.clear();
+          });
+        }
       }
     });
   }
@@ -182,133 +194,161 @@ class _HomeState extends State<Home> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: fetchProducts,
-              child: products.isEmpty
-                  ? const Center(
-                      child: Text('No products available'),
-                    )
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(8),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.9,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        labelText: 'Search',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
                       ),
-                      itemCount: products.length,
-                      itemBuilder: (context, index) {
-                        final product = products[index];
-                        final quantity = selectedProducts[product] ?? 0;
-                        return Card(
-                          elevation: 4,
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      DetailPage(product: product),
-                                ),
-                              );
-                            },
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      borderRadius: const BorderRadius.vertical(
-                                          top: Radius.circular(4)),
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: const BorderRadius.vertical(
-                                          top: Radius.circular(4)),
-                                      child: Image.network(
-                                        product.imageUrl,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                          return const Center(
-                                            child:
-                                                Icon(Icons.image_not_supported),
-                                          );
-                                        },
+                      onChanged: _filterProducts,
+                    ),
+                  ),
+                  Expanded(
+                    child: filteredProducts.isEmpty
+                        ? const Center(
+                            child: Text('No products available'),
+                          )
+                        : GridView.builder(
+                            padding: const EdgeInsets.all(8),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.9,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                            ),
+                            itemCount: filteredProducts.length,
+                            itemBuilder: (context, index) {
+                              final product = filteredProducts[index];
+                              final quantity = selectedProducts[product] ?? 0;
+                              return Card(
+                                elevation: 4,
+                                child: InkWell(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            DetailPage(product: product),
                                       ),
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
+                                    );
+                                  },
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        product.title,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        product.description,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      GestureDetector(
-                                        onTap: () =>
-                                            _addProductToSelection(product),
+                                      Expanded(
                                         child: Container(
-                                          padding: const EdgeInsets.all(8.0),
+                                          width: double.infinity,
                                           decoration: BoxDecoration(
-                                            color: Colors.blue.withOpacity(0.1),
                                             borderRadius:
-                                                BorderRadius.circular(4.0),
+                                                const BorderRadius.vertical(
+                                                    top: Radius.circular(4)),
                                           ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Rp${product.price.toStringAsFixed(2)}',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: quantity > 0
-                                                      ? Colors.green
-                                                      : Colors.blue,
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                const BorderRadius.vertical(
+                                                    top: Radius.circular(4)),
+                                            child: Image.network(
+                                              product.imageUrl,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return const Center(
+                                                  child: Icon(Icons
+                                                      .image_not_supported),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              product.title,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              product.description,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            GestureDetector(
+                                              onTap: () =>
+                                                  _addProductToSelection(
+                                                      product),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.all(8.0),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue
+                                                      .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          4.0),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Rp${product.price.toStringAsFixed(2)}',
+                                                      style: TextStyle(
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: quantity > 0
+                                                            ? Colors.green
+                                                            : Colors.blue,
+                                                      ),
+                                                    ),
+                                                    if (quantity > 0)
+                                                      Text(
+                                                        'Quantity: $quantity',
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors.green,
+                                                        ),
+                                                      ),
+                                                  ],
                                                 ),
                                               ),
-                                              if (quantity > 0)
-                                                Text(
-                                                  'Quantity: $quantity',
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.green,
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              ],
-                            ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
+                  ),
+                ],
+              ),
             ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
@@ -363,6 +403,13 @@ class _HomeState extends State<Home> {
                       _loadUsername();
                     },
                     tooltip: 'Update User',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.history, color: Colors.white),
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/orderHistory');
+                    },
+                    tooltip: 'Order History',
                   ),
                 ],
               ),

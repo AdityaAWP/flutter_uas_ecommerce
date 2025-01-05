@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">COMO STORE</string>
+    <string name="facebook_app_id">957934646281550</string>
+    <string name="fb_login_protocol_scheme">fb957934646281550</string>
+    <string name="facebook_client_token">12142b47afc8142ad050a8c380d4cfb2</string>
+</resources>

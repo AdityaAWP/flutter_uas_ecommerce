@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "968243134494",
+    "project_id": "flutter-ecommerce-pbb",
+    "storage_bucket": "flutter-ecommerce-pbb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:968243134494:android:d93efa7a8e151132862e0f",
+        "android_client_info": {
+          "package_name": "com.example.uts"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAz4DofAEbnxpoMlTjB5_WxJyQnIBcLQpg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

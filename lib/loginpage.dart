@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -17,18 +19,80 @@ class _LoginPageState extends State<LoginPage> {
   String? passwordError;
   bool isLoading = false;
 
+  Future<void> signInWithFacebook() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final LoginResult result = await FacebookAuth.instance.login();
+
+      if (result.status == LoginStatus.success) {
+        final userData = await FacebookAuth.instance.getUserData();
+
+        final OAuthCredential credential =
+            FacebookAuthProvider.credential(result.accessToken!.token);
+
+        final userCredential =
+            await FirebaseAuth.instance.signInWithCredential(credential);
+
+        final response = await http.post(
+          Uri.parse('http://127.0.0.1:8000/api/facebook-login'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode({
+            'facebook_id': userData['id'],
+            'name': userData['name'],
+            'email': userData['email'],
+            'firebase_uid': userCredential.user?.uid,
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          final responseData = json.decode(response.body);
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString('access_token', responseData['access_token']);
+          await prefs.setBool('isLoggedIn', true);
+          await prefs.setString('username', userData['name']);
+
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          print('Facebook login failed: ${response.body}');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Facebook login failed: ${response.body}')),
+          );
+        }
+      } else {
+        print('Facebook login failed: ${result.status}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Facebook login failed: ${result.status}')),
+        );
+      }
+    } catch (e, stackTrace) {
+      print('Facebook login error: $e');
+      print('Stack trace: $stackTrace');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Facebook login failed: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   void loginUser() async {
     String username = usernameController.text;
     String password = passwordController.text;
 
-    // Reset previous errors
     setState(() {
       usernameError = null;
       passwordError = null;
       isLoading = true;
     });
 
-    // Validate input
     if (username.isEmpty || password.isEmpty) {
       setState(() {
         usernameError = username.isEmpty ? 'Username tidak boleh kosong' : null;
@@ -39,49 +103,52 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      // Make API call to login
+      print('Attempting to login with username: $username');
+
       final response = await http.post(
-        Uri.parse(
-            'http://127.0.0.1:8000/api/login'), // Replace with your actual API endpoint
+        Uri.parse('http://127.0.0.1:8000/api/login'), // Updated IP address
         body: jsonEncode({
           'name': username,
           'password': password,
         }),
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
       );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       setState(() {
         isLoading = false;
       });
 
-      // Parse the response
       final responseData = json.decode(response.body);
       if (response.statusCode == 200) {
-        // Login successful
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('access_token', responseData['access_token']);
         await prefs.setBool('isLoggedIn', true);
         await prefs.setString('username', username);
+        await prefs.setString('user_id', responseData['data']['id'].toString());
 
-        // Navigate to home page
         Navigator.pushReplacementNamed(context, '/home');
       } else {
-        // Login failed
         String errorMessage =
-            responseData['message'] ?? 'username dan password salah';
+            responseData['message'] ?? 'Username dan password salah';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Login error: $e');
+      print('Stack trace: $stackTrace');
+
       setState(() {
         isLoading = false;
       });
-      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Terjadi kesalahan. Silakan coba lagi.')),
+        SnackBar(content: Text('Error: $e')),
       );
     }
   }
@@ -132,20 +199,38 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              // Login Button
+              // Regular Login Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xFF006A67),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onPressed: isLoading ? null : loginUser,
                   child: isLoading
-                      ? CircularProgressIndicator(color: Colors.white)
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           'Login',
                           style: TextStyle(color: Colors.white),
                         ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Facebook Login Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1877F2), // Facebook blue
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: isLoading ? null : signInWithFacebook,
+                  icon: const Icon(Icons.facebook, color: Colors.white),
+                  label: const Text(
+                    'Login with Facebook',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
               // Link to Registration
