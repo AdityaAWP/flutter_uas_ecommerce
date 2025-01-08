@@ -178,7 +178,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
     // Send data to the server
     final response = await http.post(
-      Uri.parse('http://127.0.0.1:8000/api/orders'),
+      Uri.parse('https://3289-103-246-107-4.ngrok-free.app/api/orders'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',

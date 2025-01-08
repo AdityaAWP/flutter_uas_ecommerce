@@ -36,7 +36,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       try {
         var response = await http.post(
           Uri.parse(
-              'http://192.168.20.126:8000/api/register'), // Update this line
+              'https://3289-103-246-107-4.ngrok-free.app/api/register'), // Update this line
           body: jsonEncode({
             'name': username,
             'email': email,

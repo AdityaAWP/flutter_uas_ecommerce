@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:uts/home.dart';
 import 'package:uts/loginpage.dart';
 import 'package:uts/orderhistory.dart';
 import 'package:uts/registrasionpage.dart';
 import 'package:uts/splashscreen.dart';
 import 'package:uts/updateuserpage.dart';
+import 'package:uts/upload_bukti_page.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize dotenv
+  await dotenv.load(fileName: '.env');
   // Initialize Firebase
   try {
     await Firebase.initializeApp(
@@ -42,7 +46,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/updateUser': (context) => const UpdateUserPage(),
         '/register': (context) => const RegistrationPage(),
-        '/orderHistory': (context) => const OrderHistory(), // Add this line
+        '/orderHistory': (context) => const OrderHistory(),
       },
     );
   }

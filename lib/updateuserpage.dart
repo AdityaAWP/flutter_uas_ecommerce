@@ -48,7 +48,8 @@ class _UpdateUserPageState extends State<UpdateUserPage> {
       if (userId != null) {
         try {
           final response = await http.put(
-            Uri.parse('http://127.0.0.1:8000/api/update-profile/$userId'),
+            Uri.parse(
+                'https://3289-103-246-107-4.ngrok-free.app/api/update-profile/$userId'),
             headers: {
               'Authorization': 'Bearer $token',
               'Content-Type': 'application/json',

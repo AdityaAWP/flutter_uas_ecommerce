@@ -34,7 +34,8 @@ class _OrderHistoryState extends State<OrderHistory> {
       String? token = prefs.getString('access_token');
 
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/api/order-history'),
+        Uri.parse(
+            'https://3289-103-246-107-4.ngrok-free.app/api/order-history'),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
@@ -89,7 +90,7 @@ class _OrderHistoryState extends State<OrderHistory> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Total: Rp${totalPrice.toStringAsFixed(0)}',
+                              'Total: Rp${double.parse(totalPrice.toString()).toStringAsFixed(0)}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green,
@@ -97,7 +98,7 @@ class _OrderHistoryState extends State<OrderHistory> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Shipping: Rp${shippingPrice.toStringAsFixed(0)}',
+                              'Shipping: Rp${double.parse(shippingPrice.toString()).toStringAsFixed(0)}',
                               style: const TextStyle(color: Colors.blue),
                             ),
                           ],

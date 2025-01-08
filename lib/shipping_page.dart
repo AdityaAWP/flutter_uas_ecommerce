@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uts/upload_bukti_page.dart';
+import 'package:uts/midtrans.dart'; // Import MidtransPaymentPage
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Import dotenv
 
 class ShippingPage extends StatefulWidget {
   final double totalPrice;
@@ -24,7 +27,8 @@ class _ShippingPageState extends State<ShippingPage> {
   static const String ORIGIN_ADDRESS =
       'Jl. Pamularsih Bar. VIII No.4, RT.004/RW.09, Bojongsalaman, Kec. Semarang Barat, Kota Semarang, Jawa Tengah 50141';
 
-  static const String baseUrl = 'http://127.0.0.1:8000'; // Add this constant
+  static const String baseUrl =
+      'https://3289-103-246-107-4.ngrok-free.app'; // Add this constant
 
   List<Map<String, dynamic>> provinces = [];
   List<Map<String, dynamic>> cities = [];
@@ -189,7 +193,7 @@ class _ShippingPageState extends State<ShippingPage> {
     }
   }
 
-  Future<void> createOrder(Map<String, dynamic> shippingDetails) async {
+  Future<int?> createOrder(Map<String, dynamic> shippingDetails) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token');
@@ -220,46 +224,9 @@ class _ShippingPageState extends State<ShippingPage> {
       );
 
       if (response.statusCode == 201) {
-        // Show success dialog
-        if (mounted) {
-          await showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Order Placed Successfully'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Your order has been placed successfully!'),
-                    const SizedBox(height: 8),
-                    Text(
-                        'Total Amount: Rp${shippingDetails['total_price'].toStringAsFixed(0)}'),
-                    Text(
-                        'Shipping to: ${shippingDetails['shipping_destination']}'),
-                    Text('Courier: ${shippingDetails['courier_service']}'),
-                    Text(
-                        'Estimated delivery: ${shippingDetails['estimated_days']} days'),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    child: const Text('OK'),
-                    onPressed: () {
-                      Navigator.of(context).pop(); // Close dialog
-                      // Navigate to home and clear all previous routes
-                      Navigator.of(context).pushNamedAndRemoveUntil(
-                        '/home', // Replace with your home route name
-                        (Route<dynamic> route) => false,
-                      );
-                    },
-                  ),
-                ],
-              );
-            },
-          );
-        }
+        final responseData = json.decode(response.body);
+        print('Order created with ID: ${responseData['data']['id']}');
+        return responseData['data']['id'];
       } else {
         throw Exception('Failed to create order: ${response.statusCode}');
       }
@@ -268,6 +235,57 @@ class _ShippingPageState extends State<ShippingPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to create order: $e')),
+        );
+      }
+      return null;
+    }
+  }
+
+  Future<void> fetchMidtransToken(int orderId, double grossAmount) async {
+    try {
+      final String midtransServerKey = dotenv.env['MIDTRANS_SERVER_KEY']!;
+      final String basicAuth =
+          'Basic ' + base64Encode(utf8.encode(midtransServerKey + ':'));
+
+      final response = await http.post(
+        Uri.parse('https://app.sandbox.midtrans.com/snap/v1/transactions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': basicAuth,
+        },
+        body: json.encode({
+          "transaction_details": {
+            "order_id": "ORDER-101-$orderId",
+            "gross_amount": grossAmount,
+          },
+          "credit_card": {
+            "secure": true,
+          },
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final responseData = json.decode(response.body);
+        final String token = responseData['token'];
+        final String redirectUrl = responseData['redirect_url'];
+
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => MidtransPaymentPage(
+            snapToken: token,
+            redirectUrl: redirectUrl,
+            orderId: orderId, // Pass the actual order ID
+          ),
+        ));
+      } else {
+        throw Exception(
+            'Failed to fetch Midtrans token: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching Midtrans token: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to fetch Midtrans token: $e')),
         );
       }
     }
@@ -293,7 +311,11 @@ class _ShippingPageState extends State<ShippingPage> {
     };
 
     // Create order with shipping details
-    createOrder(shippingDetails);
+    createOrder(shippingDetails).then((orderId) {
+      if (orderId != null) {
+        fetchMidtransToken(orderId, totalWithShipping);
+      }
+    });
   }
 
   @override

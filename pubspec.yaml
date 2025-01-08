@@ -21,7 +21,12 @@ dependencies:
   firebase_auth: ^5.3.4
   firebase_auth_web: ^5.8.13
   js: ^0.7.1
-  midtrans_sdk: ^0.4.0
+  image_picker: ^1.1.2
+  flutter_dotenv: ^5.2.1
+  webview_flutter: ^4.10.0
+  pdf: ^3.3.0
+  path_provider: ^2.0.2
+  flutter_pdfview: ^1.0.4+1
 
 dev_dependencies:
   flutter_test:
@@ -39,6 +44,7 @@ flutter:
     - assets/pink_floyd.png
     - assets/denzel_curry.png
     - assets/logos.jpg
+    - .env
 
 flutter_launcher_icons:
   android: true

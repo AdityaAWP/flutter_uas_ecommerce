@@ -35,35 +35,6 @@ class _LoginPageState extends State<LoginPage> {
 
         final userCredential =
             await FirebaseAuth.instance.signInWithCredential(credential);
-
-        final response = await http.post(
-          Uri.parse('http://127.0.0.1:8000/api/facebook-login'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: jsonEncode({
-            'facebook_id': userData['id'],
-            'name': userData['name'],
-            'email': userData['email'],
-            'firebase_uid': userCredential.user?.uid,
-          }),
-        );
-
-        if (response.statusCode == 200) {
-          final responseData = json.decode(response.body);
-          SharedPreferences prefs = await SharedPreferences.getInstance();
-          await prefs.setString('access_token', responseData['access_token']);
-          await prefs.setBool('isLoggedIn', true);
-          await prefs.setString('username', userData['name']);
-
-          Navigator.pushReplacementNamed(context, '/home');
-        } else {
-          print('Facebook login failed: ${response.body}');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Facebook login failed: ${response.body}')),
-          );
-        }
       } else {
         print('Facebook login failed: ${result.status}');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -106,7 +77,8 @@ class _LoginPageState extends State<LoginPage> {
       print('Attempting to login with username: $username');
 
       final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/api/login'), // Updated IP address
+        Uri.parse(
+            'https://3289-103-246-107-4.ngrok-free.app/api/login'), // Updated IP address
         body: jsonEncode({
           'name': username,
           'password': password,

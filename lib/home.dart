@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:uts/midtrans.dart';
 import 'product_model.dart';
 import 'detailpage.dart';
 import 'payementpage.dart';
@@ -21,7 +22,7 @@ class _HomeState extends State<Home> {
   List<Product> filteredProducts = [];
   bool isLoading = true;
   static const String baseUrl =
-      'http://127.0.0.1:8000'; // Update with your API URL
+      'https://3289-103-246-107-4.ngrok-free.app'; // Update with your API URL
   double totalSelectedPrice = 0.0;
   Map<Product, int> selectedProducts = {};
   TextEditingController searchController = TextEditingController();
@@ -411,6 +412,7 @@ class _HomeState extends State<Home> {
                     },
                     tooltip: 'Order History',
                   ),
+                  // Removed Midtrans Payment IconButton
                 ],
               ),
             ),
